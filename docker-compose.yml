@@ -13,7 +13,7 @@ services:
       PORT: 3000
       NODE_ENV: production
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: 5434
       DB_NAME: catalogue_db
       DB_USER: postgres
       DB_PASSWORD: postgres
@@ -32,7 +32,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - '5432:5432'
+      - '5434:5434'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
