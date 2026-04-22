@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   catalogue:
     build: 
@@ -8,12 +6,12 @@ services:
       target: builder
     container_name: catalogue-service
     ports:
-      - '3000:3000'
+      - '4000:3000'
     environment:
       PORT: 3000
       NODE_ENV: production
       DB_HOST: postgres
-      DB_PORT: 5434
+      DB_PORT: 5432
       DB_NAME: catalogue_db
       DB_USER: postgres
       DB_PASSWORD: postgres
@@ -32,7 +30,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - '5434:5434'
+      - '5434:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
