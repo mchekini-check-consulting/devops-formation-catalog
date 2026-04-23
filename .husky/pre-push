@@ -2,4 +2,11 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 
-npx commitlint --from origin/chore/dockerglobal_commitlint --to HEAD --verbose
+npx commitlint --from origin/chore/dockerglobal_commitlint --to HEAD --verbose || {
+  echo ""
+  echo " Tip: Instead of writing commits manually, use:"
+  echo "   npx cz"
+  echo "   It will guide you through the correct format."
+  echo ""
+  exit 1
+}
