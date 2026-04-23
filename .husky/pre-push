@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+
+npx commitlint --from origin/chore/dockerglobal_commitlint --to HEAD --verbose
