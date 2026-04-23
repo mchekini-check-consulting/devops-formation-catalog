@@ -6,9 +6,9 @@ services:
       target: builder
     container_name: catalogue-service
     ports:
-      - '4000:3000'
+      - '4000:4000'
     environment:
-      PORT: 3000
+      PORT: 4000
       NODE_ENV: production
       DB_HOST: postgres
       DB_PORT: 5432

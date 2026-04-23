@@ -16,7 +16,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'catalogue-service' });
 });
 
-app.use('/products', productRoutes);
+app.use('/api/catalog', productRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
