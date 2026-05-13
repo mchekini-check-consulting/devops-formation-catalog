@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const productService = require('../services/product.service');
+const logger = require('../config/logger');
 
 class ProductController {
   async create(req, res) {
@@ -12,6 +13,7 @@ class ProductController {
       const product = await productService.createProduct(req.body);
       return res.status(201).json(product);
     } catch (error) {
+      logger.error('Failed to create product', { error });
       return res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   }
@@ -29,6 +31,7 @@ class ProductController {
       }
       return res.status(200).json(product);
     } catch (error) {
+      logger.error('Failed to update product', { error });
       return res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   }
@@ -41,6 +44,7 @@ class ProductController {
       }
       return res.status(200).json({ message: 'Product deleted successfully' });
     } catch (error) {
+      logger.error('Failed to delete product', { error });
       return res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   }
@@ -56,6 +60,7 @@ class ProductController {
       const products = await productService.searchProducts({ name, category, minPrice, maxPrice });
       return res.status(200).json(products);
     } catch (error) {
+      logger.error('Failed to search products', { error });
       return res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   }

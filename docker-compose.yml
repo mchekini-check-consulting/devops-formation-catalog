@@ -15,6 +15,10 @@ services:
       DB_NAME: catalogue_db
       DB_USER: postgres
       DB_PASSWORD: postgres
+      LOG_LEVEL: info
+      SERVICE_NAME: catalog
+      ENV: production
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
     depends_on:
       postgres:
         condition: service_healthy
