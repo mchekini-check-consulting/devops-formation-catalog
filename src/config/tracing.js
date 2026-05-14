@@ -15,6 +15,7 @@ if (connectionString) {
     }),
     instrumentationOptions: {
       http: { enabled: true },
+      winston: { enabled: true },
     },
   });
   console.log(JSON.stringify({
