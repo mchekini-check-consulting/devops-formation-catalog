@@ -18,7 +18,6 @@ services:
       LOG_LEVEL: info
       SERVICE_NAME: catalog
       ENV: production
-      APPLICATIONINSIGHTS_CONNECTION_STRING: "InstrumentationKey=e0c8cd17-481d-4731-9cf3-f88f06152d53;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus.livediagnostics.monitor.azure.com/;ApplicationId=754d7d60-7e60-4a96-a291-9da7e6d1d1d6"
     depends_on:
       postgres:
         condition: service_healthy

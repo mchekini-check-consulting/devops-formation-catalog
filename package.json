@@ -24,8 +24,15 @@
     "uuid": "^9.0.0",
     "winston": "^3.19.0"
   },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  },
   "devDependencies": {
     "@commitlint/config-conventional": "^21.0.1",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "sequelize-mock": "^0.10.2",
