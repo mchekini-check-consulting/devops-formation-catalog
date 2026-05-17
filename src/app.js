@@ -1,7 +1,9 @@
+require('./config/tracing');
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const morgan = require('morgan');
+const logger = require('./config/logger');
+const httpLogger = require('./middleware/httpLogger');
 const productRoutes = require('./routes/product.routes');
 const sequelize = require('./config/database');
 const swaggerUi = require('swagger-ui-express');
@@ -9,7 +11,7 @@ const swaggerSpec = require('./config/swagger');
 const app = express();
 
 app.use(cors());
-app.use(morgan('dev'));
+app.use(httpLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -26,7 +28,11 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(err.message, {
+    error: err,
+    method: req.method,
+    url: req.originalUrl,
+  });
   res.status(500).json({ message: 'Internal server error' });
 });
 
@@ -35,14 +41,14 @@ if (require.main === module) {
 const start = async () => {
   try {
     await sequelize.authenticate();
-    console.log('Database connection established.');
+    logger.info('Database connection established.');
     await sequelize.sync({ alter: true });
-    console.log('Database synced.');
+    logger.info('Database synced.');
     app.listen(PORT, () => {
-      console.log(`Catalogue service running on port ${PORT}`);
+      logger.info(`Catalogue service running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('Failed to start service:', error);
+    logger.error('Failed to start service', { error });
     process.exit(1);
   }
 };
