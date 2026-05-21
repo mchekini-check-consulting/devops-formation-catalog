@@ -49,6 +49,19 @@ class ProductController {
     }
   }
 
+  async getById(req, res) {
+    try {
+      const product = await productService.getProductById(req.params.id);
+      if (!product) {
+        return res.status(404).json({ message: `Product with id '${req.params.id}' not found` });
+      }
+      return res.status(200).json(product);
+    } catch (error) {
+      logger.error('Failed to get product', { error });
+      return res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  }
+
   async search(req, res) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
