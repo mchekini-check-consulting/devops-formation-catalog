@@ -11,5 +11,6 @@ router.post('/', createProductValidation, productController.create);
 router.put('/:id', updateProductValidation, productController.update);
 router.delete('/:id', productController.delete);
 router.get('/', searchProductValidation, productController.search);
+router.get('/:id', productController.getById);
 
 module.exports = router;
