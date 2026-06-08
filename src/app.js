@@ -42,7 +42,7 @@ const start = async () => {
   try {
     await sequelize.authenticate();
     logger.info('Database connection established.');
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
     logger.info('Database synced.');
     app.listen(PORT, () => {
       logger.info(`Catalogue service running on port ${PORT}`);
