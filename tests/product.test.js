@@ -116,10 +116,66 @@ describe('GET /api/products', () => {
   });
 });
 
-describe('GET /health', () => {
+describe('GET /api/products/:id', () => {
+  it('should return a product by id', async () => {
+    Product.findByPk.mockResolvedValue(mockProduct);
+    const res = await request(app).get(`/api/products/${mockProduct.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe('Test Product');
+  });
+  it('should return 404 if product not found', async () => {
+    Product.findByPk.mockResolvedValue(null);
+    const res = await request(app).get('/api/products/nonexistent-id');
+    expect(res.status).toBe(404);
+  });
+  it('should return 500 on internal error', async () => {
+    Product.findByPk.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).get(`/api/products/${mockProduct.id}`);
+    expect(res.status).toBe(500);
+  });
+});
+
+describe('Error handling', () => {
+  it('POST should return 500 on internal error', async () => {
+    Product.create.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).post('/api/products').send({
+      name: 'Test Product',
+      price: 29.99,
+      category: 'Electronics',
+    });
+    expect(res.status).toBe(500);
+  });
+  it('PUT should return 500 on internal error', async () => {
+    Product.findByPk.mockRejectedValue(new Error('DB error'));
+    const res = await request(app)
+      .put(`/api/products/${mockProduct.id}`)
+      .send({ name: 'Updated' });
+    expect(res.status).toBe(500);
+  });
+  it('DELETE should return 500 on internal error', async () => {
+    Product.findByPk.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).delete(`/api/products/${mockProduct.id}`);
+    expect(res.status).toBe(500);
+  });
+  it('GET search should return 500 on internal error', async () => {
+    Product.findAll.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).get('/api/products');
+    expect(res.status).toBe(500);
+  });
+});
+
+describe('GET /api/health', () => {
   it('should return 200 and status UP', async () => {
-    const res = await request(app).get('/health');
+    const res = await request(app).get('/api/health');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('UP');
+  });
+});
+
+describe('404 handler', () => {
+  it('should return 404 for unknown routes', async () => {
+    const res = await request(app).get('/unknown-route');
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('Route not found');
   });
 });
