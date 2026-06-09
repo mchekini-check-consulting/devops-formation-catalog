@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   pull_request:
-    branches: [main]
+    branches: [ci-phase1]
   push:
-    branches: [main]
+    branches: [ci-phase1]
 
 permissions:
   contents: read
