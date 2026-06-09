@@ -30,6 +30,9 @@
       "path": "cz-conventional-changelog"
     }
   },
+  "jest": {
+    "coverageReporters": ["text", "lcov", "clover", "json-summary"]
+  },
   "devDependencies": {
     "@commitlint/config-conventional": "^21.0.1",
     "commitizen": "^4.3.1",
