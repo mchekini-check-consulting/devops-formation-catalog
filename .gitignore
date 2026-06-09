@@ -34,3 +34,4 @@ build/
 
 ### npm  ###
 node_modules/
+coverage/

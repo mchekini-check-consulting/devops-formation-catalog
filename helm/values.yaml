@@ -1,0 +1,97 @@
+namespace: dev
+
+image:
+  repository: crformation.azurecr.io/ecommerce-catalogue
+  tag: "2.0"
+  pullPolicy: Always
+
+replicaCount: 2
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: "25%"
+    maxUnavailable: 0
+
+affinity:
+  nodepool: apps
+
+service:
+  type: ClusterIP
+  port: 4000
+
+probes:
+  path: /api/health
+  startup:
+    periodSeconds: 10
+    failureThreshold: 6
+  liveness:
+    periodSeconds: 15
+    failureThreshold: 3
+  readiness:
+    periodSeconds: 5
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# initContainer sync-db: runs the app against postgres-primary to seed schema
+# uses postgres-primary directly (not pgcat) to write before replicas read
+initContainer:
+  enabled: true
+  name: sync-db
+  command:
+    - /bin/sh
+    - -c
+    - "timeout 30 node /app/src/app.js; exit 0"
+  env:
+    - name: DB_HOST
+      value: "postgres-primary.dev.svc.cluster.local"
+    - name: DB_SSL
+      value: "true"
+    - name: PGSSLMODE
+      value: "no-verify"
+    - name: NODE_TLS_REJECT_UNAUTHORIZED
+      value: "0"
+
+configmap:
+  PORT: "4000"
+  NODE_ENV: "production"
+  DB_HOST: "pgcat.dev.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "catalogue"
+  DB_SSL: "true"
+  PGSSLMODE: "disable"
+
+secret:
+  DB_USER: formation
+  DB_PASSWORD: test
+  APPLICATIONINSIGHTS_CONNECTION_STRING: "InstrumentationKey=1311ad53-6ac0-4946-bb2f-48c60120bbd9;IngestionEndpoint=https://francecentral-1.in.applicationinsights.azure.com/;LiveEndpoint=https://francecentral.livediagnostics.monitor.azure.com/;ApplicationId=d9efc03e-0523-42cc-9e0e-1ea237ed1ba4"
+
+pdb:
+  minAvailable: 1
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 4
+  cpu:
+    averageUtilization: 70
+  memory:
+    averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      percent: 100
+      periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      percent: 25
+      periodSeconds: 60
+
+vpa:
+  updateMode: "Off"
