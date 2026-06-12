@@ -261,6 +261,13 @@ jobs:
           cache-to: type=gha,mode=max
           outputs: type=oci,dest=catalog-image.tar
 
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: catalog-image.tar
+          retention-days: 1
+
   # ──────────────────────────────────────────────
   # Job 9 : Image scan (Trivy)
   # ──────────────────────────────────────────────
@@ -269,6 +276,11 @@ jobs:
     timeout-minutes: 15
     needs: build
     steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
