@@ -250,16 +250,6 @@ jobs:
       - name: Setup buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build application
-        run: npm run build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts
-          path: dist/
-          retention-days: 7
-
       # amd64 uniquement car load: true incompatible avec multi-arch
       # le rebuild multi-arch se fera au push ACR après le scan
       - name: Build Docker image (amd64 for scan)
@@ -273,6 +263,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Save Docker image as tar
+        run: docker save catalog:${{ github.sha }} -o catalog-image.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: catalog-image.tar
+          retention-days: 1
+
   # ──────────────────────────────────────────────
   # Job 9 : Image scan (Trivy)
   # ──────────────────────────────────────────────
@@ -281,21 +281,13 @@ jobs:
     timeout-minutes: 15
     needs: build
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Rebuild Docker image for scan
-        uses: docker/build-push-action@v5
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
         with:
-          context: .
-          platforms: linux/amd64
-          load: true
-          push: false
-          tags: catalog:${{ github.sha }}
-          cache-from: type=gha
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i catalog-image.tar
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
