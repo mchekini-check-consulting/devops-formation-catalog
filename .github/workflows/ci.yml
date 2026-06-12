@@ -159,8 +159,11 @@ jobs:
             node_modules
           key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - name: Run all tests with coverage
-        run: npm run test:ci
+      - name: Run unit tests with coverage
+        run: npm test
+
+      - name: Run integration tests with coverage
+        run: npm run test:integration
         env:
           DB_HOST: localhost
           DB_PORT: 5432
@@ -168,7 +171,7 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: postgres
 
-      - name: Upload coverage report
+      - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -192,18 +195,28 @@ jobs:
 
       - name: Check coverage threshold (80% lines)
         run: |
-          COVERAGE=$(cat coverage/coverage-summary.json | python3 -c "
+          echo "=== Unit test coverage ==="
+          UNIT_COV=$(cat coverage/unit/coverage-summary.json | python3 -c "
           import sys, json
           data = json.load(sys.stdin)
           print(data['total']['lines']['pct'])
           ")
-          echo "Line coverage: ${COVERAGE}%"
+          echo "Unit line coverage: ${UNIT_COV}%"
+
+          echo "=== Integration test coverage ==="
+          INTEG_COV=$(cat coverage/integration/coverage-summary.json | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print(data['total']['lines']['pct'])
+          ")
+          echo "Integration line coverage: ${INTEG_COV}%"
+
           THRESHOLD=80
-          if [ "$(echo "${COVERAGE} < ${THRESHOLD}" | bc -l)" -eq 1 ]; then
-            echo "::error::Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+          if [ "$(echo "${UNIT_COV} < ${THRESHOLD}" | bc -l)" -eq 1 ]; then
+            echo "::error::Unit coverage ${UNIT_COV}% is below threshold ${THRESHOLD}%"
             exit 1
           fi
-          echo "Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+          echo "Unit coverage ${UNIT_COV}% meets threshold ${THRESHOLD}%"
 
   # ──────────────────────────────────────────────
   # Job 7 : SonarQube analysis
