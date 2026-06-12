@@ -281,10 +281,13 @@ jobs:
         with:
           name: docker-image
 
+      - name: Extract OCI image
+        run: mkdir -p catalog-image && tar -xf catalog-image.tar -C catalog-image
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          input: catalog-image.tar
+          input: catalog-image
           severity: CRITICAL,HIGH
           exit-code: 1
           format: table
