@@ -1,5 +1,3 @@
-const { DataTypes } = require('sequelize');
-
 describe('Product model', () => {
   const originalEnv = process.env;
 
