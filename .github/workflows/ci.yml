@@ -159,11 +159,8 @@ jobs:
             node_modules
           key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - name: Run tests with coverage
-        run: npm test
-
-      - name: Run integration tests
-        run: npm run test:integration
+      - name: Run all tests with coverage
+        run: npm run test:ci
         env:
           DB_HOST: localhost
           DB_PORT: 5432

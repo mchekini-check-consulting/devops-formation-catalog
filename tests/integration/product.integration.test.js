@@ -73,4 +73,41 @@ describe('Integration Tests', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it('PUT /api/products/:id → 404 not found', async () => {
+    const res = await request(app)
+      .put('/api/products/00000000-0000-0000-0000-000000000000')
+      .send({ name: 'Ghost' });
+    expect(res.status).toBe(404);
+  });
+
+  it('DELETE /api/products/:id → 404 not found', async () => {
+    const res = await request(app)
+      .delete('/api/products/00000000-0000-0000-0000-000000000000');
+    expect(res.status).toBe(404);
+  });
+
+  it('GET /api/products?category=Testing → 200 filter by category', async () => {
+    await request(app).post('/api/products').send({
+      name: 'Category Product',
+      price: 10,
+      category: 'Electronics',
+    });
+    const res = await request(app).get('/api/products?category=Electronics');
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThanOrEqual(1);
+    expect(res.body[0].category).toBe('Electronics');
+  });
+
+  it('GET /api/products?minPrice=5&maxPrice=15 → 200 filter by price range', async () => {
+    const res = await request(app).get('/api/products?minPrice=5&maxPrice=15');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  it('GET /unknown-route → 404', async () => {
+    const res = await request(app).get('/unknown-route');
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('Route not found');
+  });
 });

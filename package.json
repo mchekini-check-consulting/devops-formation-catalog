@@ -7,7 +7,8 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest --runInBand --forceExit --coverage --testPathIgnorePatterns=tests/integration",
-    "test:integration": "jest tests/integration --runInBand --forceExit --coverage",
+    "test:integration": "jest tests/integration --runInBand --forceExit",
+    "test:ci": "jest --runInBand --forceExit --coverage",
     "lint": "eslint src/ tests/"
   },
   "dependencies": {
