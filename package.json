@@ -33,6 +33,11 @@
   "jest": {
     "coverageReporters": ["text", "lcov", "clover", "json-summary"]
   },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.4",
+    "protobufjs": "^8.0.2",
+    "qs": "^6.15.2"
+  },
   "devDependencies": {
     "@commitlint/config-conventional": "^21.0.1",
     "commitizen": "^4.3.1",

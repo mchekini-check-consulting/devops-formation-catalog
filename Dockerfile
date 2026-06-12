@@ -10,6 +10,7 @@ CMD ["node", "src/app.js"]
 
 # Stage 2: production (no dev dependencies)
 FROM node:20-alpine AS production
+RUN apk update && apk upgrade --no-cache && npm install -g npm@11.17.0
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev && chown node:node /app
