@@ -245,12 +245,46 @@ jobs:
           retention-days: 7
 
   # ──────────────────────────────────────────────
-  # Job 8 : Build application + Docker image
+  # Job 8 : Mutation testing (Stryker)
+  # ──────────────────────────────────────────────
+  mutation-testing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [sonar, coverage-gate]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Run Stryker mutation testing
+        run: npm run test:mutation
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 9 : Build application + Docker image
   # ──────────────────────────────────────────────
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: coverage-gate
+    needs: mutation-testing
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -277,7 +311,7 @@ jobs:
           retention-days: 1
 
   # ──────────────────────────────────────────────
-  # Job 9 : Image scan (Trivy)
+  # Job 10 : Image scan (Trivy)
   # ──────────────────────────────────────────────
   image-scan:
     runs-on: ubuntu-latest

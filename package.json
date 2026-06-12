@@ -9,7 +9,8 @@
     "test": "jest --runInBand --forceExit --coverage --testPathIgnorePatterns=tests/integration",
     "test:integration": "jest tests/integration --runInBand --forceExit",
     "test:ci": "jest --runInBand --forceExit --coverage",
-    "lint": "eslint src/ tests/"
+    "lint": "eslint src/ tests/",
+    "test:mutation": "stryker run"
   },
   "dependencies": {
     "@azure/monitor-opentelemetry": "^1.18.0",
@@ -33,7 +34,12 @@
     }
   },
   "jest": {
-    "coverageReporters": ["text", "lcov", "clover", "json-summary"]
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "clover",
+      "json-summary"
+    ]
   },
   "overrides": {
     "@grpc/grpc-js": "^1.14.4",
@@ -42,6 +48,8 @@
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^21.0.1",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/jest-runner": "^9.6.1",
     "commitizen": "^4.3.1",
     "cz-conventional-changelog": "^3.3.0",
     "eslint": "^8.56.0",
