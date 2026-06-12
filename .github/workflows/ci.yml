@@ -111,7 +111,7 @@ jobs:
         if: always()
         run: |
           echo "<html><head><title>npm audit report</title></head><body><pre>" > npm-audit-report.html
-          npm audit --omit=dev 2>&1 >> npm-audit-report.html || true
+          cat npm-audit-report.txt >> npm-audit-report.html
           echo "</pre></body></html>" >> npm-audit-report.html
 
       - name: Upload audit report
@@ -222,4 +222,94 @@ jobs:
         with:
           name: sonar-report
           path: .scannerwork/report-task.txt
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 8 : Build application + Docker image
+  # ──────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: coverage-gate
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Setup buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 7
+
+      # amd64 uniquement car load: true incompatible avec multi-arch
+      # le rebuild multi-arch se fera au push ACR après le scan
+      - name: Build Docker image (amd64 for scan)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: catalog:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ──────────────────────────────────────────────
+  # Job 9 : Image scan (Trivy)
+  # ──────────────────────────────────────────────
+  image-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Rebuild Docker image for scan
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: catalog:${{ github.sha }}
+          cache-from: type=gha
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: catalog:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          output: trivy-report.txt
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-report
+          path: trivy-report.txt
           retention-days: 7

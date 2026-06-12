@@ -1,0 +1,35 @@
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+configmap:
+  NODE_ENV: "development"
+  PORT: "4000"
+  DB_HOST: "pgcat.dev.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "catalogue"
+  DB_SSL: "true"
+  PGSSLMODE: "disable"
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 4
+  cpu:
+    averageUtilization: 70
+  memory:
+    averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      percent: 100
+      periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      percent: 25
+      periodSeconds: 60
