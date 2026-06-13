@@ -51,6 +51,10 @@ spec:
           labelSelector:
             matchLabels:
               {{- include "catalogue.selectorLabels" . | nindent 14 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       {{- if .Values.initContainer.enabled }}
       initContainers:
         - name: {{ .Values.initContainer.name }}
@@ -67,6 +71,12 @@ spec:
                 name: {{ .Chart.Name }}-config
             - secretRef:
                 name: {{ .Chart.Name }}-secret
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
@@ -79,6 +89,12 @@ spec:
                 name: {{ .Chart.Name }}-config
             - secretRef:
                 name: {{ .Chart.Name }}-secret
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           startupProbe:
