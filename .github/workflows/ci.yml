@@ -381,9 +381,6 @@ jobs:
     timeout-minutes: 10
     needs: image-scan
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
@@ -394,7 +391,18 @@ jobs:
       - name: Login to ACR
         run: az acr login --name crformation
 
-      - name: Build and push image
-        run: |
-          docker build -t crformation.azurecr.io/ecommerce-catalogue:${{ github.sha }} .
-          docker push crformation.azurecr.io/ecommerce-catalogue:${{ github.sha }}
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Set short SHA
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Push image to ACR
+        uses: pr-mpt/actions-push-oci-archive-to-registry@v1
+        with:
+          archive: catalog-image.tar
+          image: crformation.azurecr.io/catalog
+          tag: ${{ steps.vars.outputs.short_sha }}-${{ github.ref_name }}
