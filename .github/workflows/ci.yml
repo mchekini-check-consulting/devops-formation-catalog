@@ -434,4 +434,4 @@ jobs:
       - name: Package and push Helm chart
         run: |
           helm package ./helm
-          helm push catalog-*.tgz oci://crformation.azurecr.io/helm
+          helm push catalogue-*.tgz oci://crformation.azurecr.io/helm
