@@ -396,13 +396,42 @@ jobs:
         with:
           name: docker-image
 
-      - name: Set short SHA
+      - name: Set image tag
         id: vars
-        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          BRANCH=$(echo "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          echo "tag=${SHORT_SHA}-${BRANCH}" >> "$GITHUB_OUTPUT"
 
       - name: Push image to ACR
         uses: pr-mpt/actions-push-oci-archive-to-registry@v1
         with:
           archive: catalog-image.tar
           image: crformation.azurecr.io/catalog
-          tag: ${{ steps.vars.outputs.short_sha }}-${{ github.ref_name }}
+          tag: ${{ steps.vars.outputs.tag }}
+
+  # ──────────────────────────────────────────────
+  # Job 12 : Push Helm chart to ACR (OCI)
+  # ──────────────────────────────────────────────
+  helm-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: push-acr
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name crformation
+
+      - name: Package and push Helm chart
+        run: |
+          helm package ./helm
+          helm push catalog-chart-*.tgz oci://crformation.azurecr.io/helm
