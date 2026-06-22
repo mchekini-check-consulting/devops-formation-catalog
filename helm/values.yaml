@@ -1,7 +1,7 @@
 namespace: dev
 
 image:
-  repository: crformation.azurecr.io/ecommerce-catalogue
+  repository: crformation.azurecr.io/catalog
   tag: "2.0"
   pullPolicy: Always
 
@@ -34,11 +34,11 @@ probes:
 
 resources:
   requests:
-    cpu: 250m
-    memory: 512Mi
+    cpu: 15m
+    memory: 96Mi
   limits:
-    cpu: "1"
-    memory: 1Gi
+    cpu: 50m
+    memory: 128Mi
 
 # initContainer sync-db: runs the app against postgres-primary to seed schema
 # uses postgres-primary directly (not pgcat) to write before replicas read

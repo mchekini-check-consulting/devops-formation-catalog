@@ -1,4 +1,4 @@
-namespace: dev
+namespace: qualif
 
 replicaCount: 2
 
@@ -13,7 +13,7 @@ resources:
 initContainer:
   env:
     - name: DB_HOST
-      value: "postgres-primary.dev.svc.cluster.local"
+      value: "postgres-primary.qualif.svc.cluster.local"
     - name: DB_SSL
       value: "true"
     - name: PGSSLMODE
@@ -22,13 +22,13 @@ initContainer:
       value: "0"
 
 configmap:
-  DB_HOST: "pgcat.dev.svc.cluster.local"
+  DB_HOST: "pgcat.qualif.svc.cluster.local"
   DB_PORT: "5432"
   DB_NAME: "catalogue"
   DB_SSL: "true"
   PGSSLMODE: "disable"
-  CORS_ALLOW_ALL_ORIGINS: "TRUE"
-  LOG_LEVEL: "DEBUG"
+  CORS_ALLOW_ALL_ORIGINS: "FALSE"
+  LOG_LEVEL: "INFO"
 
 hpa:
   minReplicas: 2
