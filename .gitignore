@@ -34,3 +34,12 @@ build/
 
 ### npm  ###
 node_modules/
+
+### Environment ###
+.env
+.env.*
+!.env.example
+
+### Coverage ###
+coverage/
+coverage/**

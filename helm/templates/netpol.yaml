@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-catalogue
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.netpolicies.ingresssources }}
+      ports:
+        - port: {{ .Values.netpolicies.ingressdestports }}
+          protocol: {{ .Values.netpolicies.ingressprotocol }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.netpolicies.egresssources }}
+      ports:
+        - port: {{ .Values.netpolicies.egressdestports }}
+          protocol: {{ .Values.netpolicies.egressprotocol }}
+    - ports:
+        - port: {{ .Values.netpolicies.httpsinternetports }}
+          protocol: {{ .Values.netpolicies.httpsprotocol }}

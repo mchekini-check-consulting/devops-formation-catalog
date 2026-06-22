@@ -1,0 +1,437 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Job 1 : Checkout + Setup Node + npm ci + cache
+  # ──────────────────────────────────────────────
+  checkout-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache node_modules
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+  # ──────────────────────────────────────────────
+  # Job 2 : Lint (ESLint)
+  # ──────────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: checkout-setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Run ESLint
+        run: npm run lint
+
+  # ──────────────────────────────────────────────
+  # Job 3 : Secrets scanning (Gitleaks)
+  # ──────────────────────────────────────────────
+  secrets-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: checkout-setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ──────────────────────────────────────────────
+  # Job 4 : Dependency vulnerability check
+  # ──────────────────────────────────────────────
+  dependency-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: checkout-setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high --omit=dev 2>&1 | tee npm-audit-report.txt
+        continue-on-error: false
+
+      - name: Generate HTML audit report
+        if: always()
+        run: |
+          echo "<html><head><title>npm audit report</title></head><body><pre>" > npm-audit-report.html
+          cat npm-audit-report.txt >> npm-audit-report.html
+          echo "</pre></body></html>" >> npm-audit-report.html
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: npm-audit-report.html
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 5 : Tests unitaires + couverture
+  # ──────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: catalogue_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Run unit tests with coverage
+        run: npm test
+
+      - name: Run integration tests with coverage
+        run: npm run test:integration
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: catalogue_db
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 6 : Coverage gate (seuil 80% lines)
+  # ──────────────────────────────────────────────
+  coverage-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+    steps:
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+      - name: Check coverage threshold (80% lines)
+        run: |
+          echo "=== Unit test coverage ==="
+          UNIT_COV=$(cat coverage/unit/coverage-summary.json | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print(data['total']['lines']['pct'])
+          ")
+          echo "Unit line coverage: ${UNIT_COV}%"
+
+          echo "=== Integration test coverage ==="
+          INTEG_COV=$(cat coverage/integration/coverage-summary.json | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print(data['total']['lines']['pct'])
+          ")
+          echo "Integration line coverage: ${INTEG_COV}%"
+
+          THRESHOLD=80
+          if [ "$(echo "${UNIT_COV} < ${THRESHOLD}" | bc -l)" -eq 1 ]; then
+            echo "::error::Unit coverage ${UNIT_COV}% is below threshold ${THRESHOLD}%"
+            exit 1
+          fi
+          echo "Unit coverage ${UNIT_COV}% meets threshold ${THRESHOLD}%"
+
+  # ──────────────────────────────────────────────
+  # Job 7 : SonarQube analysis
+  # ──────────────────────────────────────────────
+  sonar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate check
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Upload Sonar results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sonar-report
+          path: .scannerwork/report-task.txt
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 8 : Mutation testing (Stryker)
+  # ──────────────────────────────────────────────
+  mutation-testing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [sonar, coverage-gate]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Run Stryker mutation testing
+        run: npm run test:mutation
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 9 : Build application + Docker image
+  # ──────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: mutation-testing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (OCI format)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          tags: catalog:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=oci,dest=catalog-image.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: catalog-image.tar
+          retention-days: 1
+
+  # ──────────────────────────────────────────────
+  # Job 10 : Image scan (Trivy)
+  # ──────────────────────────────────────────────
+  image-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Extract OCI image
+        run: mkdir -p catalog-image && tar -xf catalog-image.tar -C catalog-image
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          input: catalog-image
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          output: trivy-report.txt
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy misconfiguration scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: misconfig
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          output: trivy-misconfig-report.txt
+
+      - name: Upload Trivy reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-report
+          path: |
+            trivy-report.txt
+            trivy-misconfig-report.txt
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 11 : Build & Push to ACR (OIDC)
+  # ──────────────────────────────────────────────
+  push-acr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: image-scan
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name crformation
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Set image tag
+        id: vars
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          BRANCH=$(echo "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          echo "tag=${SHORT_SHA}-${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Push image to ACR
+        uses: pr-mpt/actions-push-oci-archive-to-registry@v1
+        with:
+          archive: catalog-image.tar
+          image: crformation.azurecr.io/catalog
+          tag: ${{ steps.vars.outputs.tag }}
+
+  # ──────────────────────────────────────────────
+  # Job 12 : Push Helm chart to ACR (OCI)
+  # ──────────────────────────────────────────────
+  helm-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: push-acr
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name crformation
+
+      - name: Package and push Helm chart
+        run: |
+          helm package ./helm
+          helm push catalogue-*.tgz oci://crformation.azurecr.io/helm
