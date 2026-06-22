@@ -24,6 +24,7 @@ RUN apk update && apk upgrade --no-cache && \
 WORKDIR /app
 COPY --from=builder /app/dist/app.js ./app.js
 RUN npm init -y > /dev/null 2>&1 && npm install pg --omit=dev 2>/dev/null
+RUN npm uninstall -g npm yarn corepack && rm -rf /usr/local/lib/node_modules/npm /opt/yarn-* /usr/local/lib/node_modules/corepack
 RUN chown -R node:node /app
 USER node
 EXPOSE 4000
