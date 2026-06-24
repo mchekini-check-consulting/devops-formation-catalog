@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "test": "jest --runInBand --forceExit --coverage --coverageDirectory=coverage/unit --testPathIgnorePatterns=tests/integration",
-    "test:integration": "jest tests/integration --runInBand --forceExit --coverage --coverageDirectory=coverage/integration",
+    "test": "npx jest --runInBand --forceExit --coverage --coverageDirectory=coverage/unit --testPathIgnorePatterns=tests/integration",
+    "test:integration": "npx jest tests/integration --runInBand --forceExit --coverage --coverageDirectory=coverage/integration",
     "lint": "eslint src/ tests/",
     "test:mutation": "stryker run"
   },
