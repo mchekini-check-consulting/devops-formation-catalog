@@ -4,16 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Target environment"
-        required: true
+        description: "Environnement cible"
         type: choice
         options:
           - dev
           - qualif
           - prod
       image_tag:
-        description: "Image tag to deploy"
+        description: "Tag de l'image à déployer"
         required: true
+        type: string
+      chart_version:
+        description: "Version du chart Helm (ex: 1.0.0) - laisser vide pour la dernière version"
+        required: false
         type: string
 
 permissions:
@@ -22,7 +25,7 @@ permissions:
 
 jobs:
   # ──────────────────────────────────────────────
-  # Job 1 : Verify image exists in ACR
+  # Job 1 : Vérifier que l'image existe dans ACR
   # ──────────────────────────────────────────────
   verify-image:
     runs-on: ubuntu-latest
@@ -37,13 +40,16 @@ jobs:
 
       - name: Verify image exists in ACR
         run: |
-          az acr manifest show-metadata \
-            crformation.azurecr.io/catalog:${{ inputs.image_tag }} \
-            --output json
-          echo "Image crformation.azurecr.io/catalog:${{ inputs.image_tag }} found"
+          az acr login --name crformation
+          if ! az acr manifest show-metadata \
+            crformation.azurecr.io/catalog:${{ inputs.image_tag }} > /dev/null 2>&1; then
+            echo "::error::Image tag '${{ inputs.image_tag }}' not found in ACR"
+            exit 1
+          fi
+          echo "✅ Image tag '${{ inputs.image_tag }}' found in ACR"
 
   # ──────────────────────────────────────────────
-  # Job 2 : Deploy to AKS via Helm
+  # Job 2 : Déployer sur le cluster AKS
   # ──────────────────────────────────────────────
   deploy:
     runs-on: ubuntu-latest
@@ -74,6 +80,7 @@ jobs:
           helm upgrade catalogue \
             oci://crformation.azurecr.io/helm/catalogue \
             --install \
+            ${{ inputs.chart_version && format('--version {0}', inputs.chart_version) || '' }} \
             --namespace ${{ inputs.environment }} \
             --create-namespace \
             -f helm/values-${{ inputs.environment }}.yaml \
@@ -81,7 +88,7 @@ jobs:
             --wait \
             --timeout 5m
 
-      - name: Verify rollout
+      - name: Verify deployment
         run: |
           kubectl rollout status deployment/catalogue \
             --namespace ${{ inputs.environment }} \

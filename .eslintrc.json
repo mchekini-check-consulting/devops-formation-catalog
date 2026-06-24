@@ -4,8 +4,9 @@
     "es2021": true,
     "jest": true
   },
+  "extends": "eslint:recommended",
   "parserOptions": {
-    "ecmaVersion": 2021
+    "ecmaVersion": "latest"
   },
   "rules": {
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],

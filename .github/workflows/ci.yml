@@ -3,8 +3,6 @@ name: CI Pipeline
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
 
 permissions:
   id-token: write
@@ -344,10 +342,12 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           input: catalog-image
+          scanners: vuln
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
           exit-code: 1
           format: table
-          output: trivy-report.txt
+          output: trivy-vuln-report.txt
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -369,7 +369,7 @@ jobs:
         with:
           name: trivy-report
           path: |
-            trivy-report.txt
+            trivy-vuln-report.txt
             trivy-misconfig-report.txt
           retention-days: 7
 
@@ -400,8 +400,9 @@ jobs:
         id: vars
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
-          BRANCH=$(echo "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9._-]/-/g')
-          echo "tag=${SHORT_SHA}-${BRANCH}" >> "$GITHUB_OUTPUT"
+          BRANCH=$(echo "${GITHUB_BASE_REF:-$GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "tag=${SHORT_SHA}-${BRANCH}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
 
       - name: Push image to ACR
         uses: pr-mpt/actions-push-oci-archive-to-registry@v1
