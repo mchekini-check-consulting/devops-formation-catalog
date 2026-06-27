@@ -5,10 +5,10 @@ replicaCount: 2
 resources:
   requests:
     cpu: 15m
-    memory: 96Mi
+    memory: 150Mi
   limits:
     cpu: 50m
-    memory: 128Mi
+    memory: 200Mi
 
 initContainer:
   env:
