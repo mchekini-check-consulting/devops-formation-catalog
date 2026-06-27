@@ -380,6 +380,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: image-scan
+    outputs:
+      image-tag: ${{ steps.vars.outputs.tag }}
     steps:
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -431,6 +433,18 @@ jobs:
 
       - name: Login to ACR
         run: az acr login --name crformation
+
+      - name: Inject version, appVersion and image tag
+        run: |
+          IMAGE_TAG="${{ needs.push-acr.outputs.image-tag }}"
+          BUILD_ID="${{ github.run_number }}"
+          sed -i "s/^version:.*/version: 1.0.${BUILD_ID}/" helm/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${IMAGE_TAG}\"/" helm/Chart.yaml
+          sed -i "s/^  tag:.*/  tag: \"${IMAGE_TAG}\"/" helm/values.yaml
+          echo "=== Chart.yaml ==="
+          cat helm/Chart.yaml
+          echo "=== values.yaml image.tag ==="
+          grep "tag:" helm/values.yaml
 
       - name: Package and push Helm chart
         run: |

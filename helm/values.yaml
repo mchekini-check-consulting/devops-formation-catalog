@@ -35,10 +35,10 @@ probes:
 resources:
   requests:
     cpu: 15m
-    memory: 96Mi
+    memory: 150Mi
   limits:
     cpu: 50m
-    memory: 128Mi
+    memory: 200Mi
 
 # initContainer sync-db: runs the app against postgres-primary to seed schema
 # uses postgres-primary directly (not pgcat) to write before replicas read
