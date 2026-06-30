@@ -65,8 +65,8 @@ configmap:
   DB_HOST: "pgcat.dev.svc.cluster.local"
   DB_PORT: "5432"
   DB_NAME: "catalogue"
-  DB_SSL: "true"
-  PGSSLMODE: "require"
+  DB_SSL: "false"
+  PGSSLMODE: "disable"
 
 secret:
   DB_USER: formation
