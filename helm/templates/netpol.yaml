@@ -27,9 +27,9 @@ spec:
         - port: {{ .Values.netpolicies.egressdestports }}
           protocol: {{ .Values.netpolicies.egressprotocol }}
     - ports:
-        - port: 53
+        - port: {{ .Values.netpolicies.dnsport }}
           protocol: UDP
-        - port: 53
+        - port: {{ .Values.netpolicies.dnsport }}
           protocol: TCP
     - ports:
         - port: {{ .Values.netpolicies.httpsinternetports }}
