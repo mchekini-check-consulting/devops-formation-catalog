@@ -48,7 +48,7 @@ initContainer:
   command:
     - /bin/sh
     - -c
-    - "timeout 30 node /app/src/app.js; exit 0"
+    - "timeout 30 node /app/app.js; exit 0"
   env:
     - name: DB_HOST
       value: "postgres-primary.dev.svc.cluster.local"
