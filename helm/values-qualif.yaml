@@ -25,8 +25,8 @@ configmap:
   DB_HOST: "pgcat.qualif.svc.cluster.local"
   DB_PORT: "5432"
   DB_NAME: "catalogue"
-  DB_SSL: "true"
-  PGSSLMODE: "require"
+  DB_SSL: "false"
+  PGSSLMODE: "disable"
   CORS_ALLOW_ALL_ORIGINS: "FALSE"
   LOG_LEVEL: "INFO"
 
