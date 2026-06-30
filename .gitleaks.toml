@@ -1,0 +1,2 @@
+[allowlist]
+paths = ["helm/values.yaml"]
