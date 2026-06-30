@@ -76,10 +76,12 @@ jobs:
         run: az acr login --name crformation
 
       - name: Helm upgrade
+        id: helm-upgrade
         run: |
           helm upgrade catalogue \
             oci://crformation.azurecr.io/helm/catalogue \
             --install \
+            --atomic \
             ${{ inputs.chart_version && format('--version {0}', inputs.chart_version) || '' }} \
             --namespace ${{ inputs.environment }} \
             --create-namespace \
