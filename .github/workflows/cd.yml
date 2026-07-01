@@ -10,13 +10,9 @@ on:
           - dev
           - qualif
           - prod
-      image_tag:
-        description: "Tag de l'image à déployer"
-        required: true
-        type: string
       chart_version:
-        description: "Version du chart Helm (ex: 1.0.0) - laisser vide pour la dernière version"
-        required: false
+        description: "Version du chart Helm (ex: 1.0.42)"
+        required: true
         type: string
 
 permissions:
@@ -25,9 +21,9 @@ permissions:
 
 jobs:
   # ──────────────────────────────────────────────
-  # Job 1 : Vérifier que l'image existe dans ACR
+  # Job 1 : Vérifier que le chart existe dans ACR
   # ──────────────────────────────────────────────
-  verify-image:
+  verify-chart:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -38,15 +34,17 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Verify image exists in ACR
+      - name: Login to ACR
+        run: az acr login --name crformation
+
+      - name: Verify chart exists
         run: |
-          az acr login --name crformation
-          if ! az acr manifest show-metadata \
-            crformation.azurecr.io/catalog:${{ inputs.image_tag }} > /dev/null 2>&1; then
-            echo "::error::Image tag '${{ inputs.image_tag }}' not found in ACR"
+          if ! helm pull oci://crformation.azurecr.io/helm/catalogue \
+            --version ${{ inputs.chart_version }} > /dev/null 2>&1; then
+            echo "::error::Chart version '${{ inputs.chart_version }}' not found in ACR"
             exit 1
           fi
-          echo "✅ Image tag '${{ inputs.image_tag }}' found in ACR"
+          echo "Chart version '${{ inputs.chart_version }}' found in ACR"
 
   # ──────────────────────────────────────────────
   # Job 2 : Déployer sur le cluster AKS
@@ -54,7 +52,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: verify-image
+    needs: verify-chart
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,17 +74,15 @@ jobs:
         run: az acr login --name crformation
 
       - name: Helm upgrade
-        id: helm-upgrade
         run: |
           helm upgrade catalogue \
             oci://crformation.azurecr.io/helm/catalogue \
             --install \
             --atomic \
-            ${{ inputs.chart_version && format('--version {0}', inputs.chart_version) || '' }} \
+            --version ${{ inputs.chart_version }} \
             --namespace ${{ inputs.environment }} \
             --create-namespace \
             -f helm/values-${{ inputs.environment }}.yaml \
-            --set image.tag=${{ inputs.image_tag }} \
             --wait \
             --timeout 5m
 
