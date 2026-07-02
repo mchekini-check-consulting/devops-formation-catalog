@@ -1,5 +1,7 @@
 const { Sequelize } = require('sequelize');
 
+const sslEnabled = process.env.DB_SSL === 'true';
+
 const sequelize = new Sequelize(
   process.env.DB_NAME || 'catalogue_db',
   process.env.DB_USER || 'postgres',
@@ -17,6 +19,14 @@ const sequelize = new Sequelize(
       acquire: 30000,
       idle: 10000,
     },
+    ...(sslEnabled && {
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false,
+        },
+      },
+    }),
   }
 );
 
