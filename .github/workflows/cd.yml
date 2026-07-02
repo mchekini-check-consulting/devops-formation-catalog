@@ -11,8 +11,8 @@ on:
           - qualif
           - prod
       chart_version:
-        description: "Version du chart Helm (ex: 1.0.42)"
-        required: true
+        description: "Version du chart Helm (requis pour qualif/prod)"
+        required: false
         type: string
 
 permissions:
@@ -21,11 +21,136 @@ permissions:
 
 jobs:
   # ──────────────────────────────────────────────
-  # Job 1 : Vérifier que le chart existe dans ACR
+  # Job 1 : Validation des inputs
   # ──────────────────────────────────────────────
-  verify-chart:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    steps:
+      - name: Validate inputs
+        run: |
+          if [[ "${{ inputs.environment }}" != "dev" && -z "${{ inputs.chart_version }}" ]]; then
+            echo "::error::chart_version is required for ${{ inputs.environment }} environment"
+            exit 1
+          fi
+
+      - name: Azure Login (OIDC)
+        if: inputs.environment != 'dev'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        if: inputs.environment != 'dev'
+        run: az acr login --name crformation
+
+      - name: Verify chart exists in ACR
+        if: inputs.environment != 'dev'
+        run: |
+          if ! helm pull oci://crformation.azurecr.io/helm/catalogue \
+            --version ${{ inputs.chart_version }} > /dev/null 2>&1; then
+            echo "::error::Chart version '${{ inputs.chart_version }}' not found in ACR"
+            exit 1
+          fi
+          echo "Chart version '${{ inputs.chart_version }}' found in ACR"
+
+  # ──────────────────────────────────────────────
+  # Job 2 : Build Docker image (dev only)
+  # ──────────────────────────────────────────────
+  build:
+    if: inputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: validate
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (OCI format)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          tags: catalog:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=oci,dest=catalog-image.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: catalog-image.tar
+          retention-days: 1
+
+  # ──────────────────────────────────────────────
+  # Job 3 : Image scan — Trivy (dev only)
+  # ──────────────────────────────────────────────
+  image-scan:
+    if: inputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Extract OCI image
+        run: mkdir -p catalog-image && tar -xf catalog-image.tar -C catalog-image
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          input: catalog-image
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
+          format: table
+          output: trivy-vuln-report.txt
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy misconfiguration scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: misconfig
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          output: trivy-misconfig-report.txt
+
+      - name: Upload Trivy reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-report
+          path: |
+            trivy-vuln-report.txt
+            trivy-misconfig-report.txt
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Job 4 : Push image to ACR (dev only)
+  # ──────────────────────────────────────────────
+  push-acr:
+    if: inputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: image-scan
+    outputs:
+      image-tag: ${{ steps.vars.outputs.tag }}
     steps:
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -37,22 +162,73 @@ jobs:
       - name: Login to ACR
         run: az acr login --name crformation
 
-      - name: Verify chart exists
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Set image tag
+        id: vars
         run: |
-          if ! helm pull oci://crformation.azurecr.io/helm/catalogue \
-            --version ${{ inputs.chart_version }} > /dev/null 2>&1; then
-            echo "::error::Chart version '${{ inputs.chart_version }}' not found in ACR"
-            exit 1
-          fi
-          echo "Chart version '${{ inputs.chart_version }}' found in ACR"
+          SHORT_SHA=${GITHUB_SHA::7}
+          BRANCH=$(echo "${GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "tag=${SHORT_SHA}-${BRANCH}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+
+      - name: Push image to ACR
+        uses: pr-mpt/actions-push-oci-archive-to-registry@v1
+        with:
+          archive: catalog-image.tar
+          image: crformation.azurecr.io/catalog
+          tag: ${{ steps.vars.outputs.tag }}
 
   # ──────────────────────────────────────────────
-  # Job 2 : Déployer sur le cluster AKS
+  # Job 5 : Push Helm chart to ACR (dev only)
+  # ──────────────────────────────────────────────
+  helm-push:
+    if: inputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: push-acr
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name crformation
+
+      - name: Inject version, appVersion and image tag
+        run: |
+          IMAGE_TAG="${{ needs.push-acr.outputs.image-tag }}"
+          BUILD_ID="${{ github.run_number }}"
+          sed -i "s/^version:.*/version: 1.0.${BUILD_ID}/" helm/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${IMAGE_TAG}\"/" helm/Chart.yaml
+          sed -i "s/^  tag:.*/  tag: \"${IMAGE_TAG}\"/" helm/values.yaml
+          echo "=== Chart.yaml ==="
+          cat helm/Chart.yaml
+          echo "=== values.yaml image.tag ==="
+          grep "tag:" helm/values.yaml
+
+      - name: Package and push Helm chart
+        run: |
+          helm package ./helm
+          helm push catalogue-*.tgz oci://crformation.azurecr.io/helm
+
+  # ──────────────────────────────────────────────
+  # Job 6 : Deploy to AKS
   # ──────────────────────────────────────────────
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: verify-chart
+    needs: [validate, helm-push]
+    if: always() && needs.validate.result == 'success' && (needs.helm-push.result == 'success' || needs.helm-push.result == 'skipped')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -75,11 +251,12 @@ jobs:
 
       - name: Helm upgrade
         run: |
+          CHART_VERSION="${{ inputs.environment == 'dev' && format('1.0.{0}', github.run_number) || inputs.chart_version }}"
           helm upgrade catalogue \
             oci://crformation.azurecr.io/helm/catalogue \
             --install \
             --atomic \
-            --version ${{ inputs.chart_version }} \
+            --version "${CHART_VERSION}" \
             --namespace ${{ inputs.environment }} \
             --create-namespace \
             -f helm/values-${{ inputs.environment }}.yaml \
