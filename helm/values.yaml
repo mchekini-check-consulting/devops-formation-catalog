@@ -1,5 +1,3 @@
-namespace: dev
-
 image:
   repository: crformation.azurecr.io/catalog
   tag: "2.0"
@@ -49,30 +47,18 @@ initContainer:
     - /bin/sh
     - -c
     - "timeout 30 node /app/app.js; exit 0"
-  env:
-    - name: DB_HOST
-      value: "postgres-primary.dev.svc.cluster.local"
-    - name: DB_SSL
-      value: "true"
-    - name: PGSSLMODE
-      value: "no-verify"
-    - name: NODE_TLS_REJECT_UNAUTHORIZED
-      value: "0"
+  env: []
 
 configmap:
   PORT: "4000"
   NODE_ENV: "production"
-  DB_HOST: "pgcat.dev.svc.cluster.local"
   DB_PORT: "5432"
   DB_NAME: "catalogue"
-  DB_SSL: "false"
-  PGSSLMODE: "disable"
 
 secret:
-  DB_USER: formation
-  DB_PASSWORD: test
+  enabled: false
+  data: {}
 
-  
 pdb:
   minAvailable: 1
 
@@ -99,13 +85,10 @@ vpa:
 netpolicies:
   ingresssources: ingress-nginx
   ingressdestports: 4000
-  ingressprotocol: TCP 
+  ingressprotocol: TCP
   egresssources: pgcat
   egressdestports: 5432
   egressprotocol: TCP
   dnsport: 53
   httpsinternetports: 443
   httpsprotocol: TCP
-
-
-

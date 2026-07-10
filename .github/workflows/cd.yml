@@ -1,18 +1,20 @@
 name: CD Pipeline
 
 on:
+  push:
+    branches: [main]
+
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environnement cible"
+        description: "Environnement cible (qualif ou prod)"
         type: choice
         options:
-          - dev
           - qualif
           - prod
-      chart_version:
-        description: "Version du chart Helm (requis pour qualif/prod)"
-        required: false
+      image_tag:
+        description: "Tag de l'image à promouvoir"
+        required: true
         type: string
 
 permissions:
@@ -21,49 +23,12 @@ permissions:
 
 jobs:
   # ──────────────────────────────────────────────
-  # Job 1 : Validation des inputs
-  # ──────────────────────────────────────────────
-  validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Validate inputs
-        run: |
-          if [[ "${{ inputs.environment }}" != "dev" && -z "${{ inputs.chart_version }}" ]]; then
-            echo "::error::chart_version is required for ${{ inputs.environment }} environment"
-            exit 1
-          fi
-
-      - name: Azure Login (OIDC)
-        if: inputs.environment != 'dev'
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Login to ACR
-        if: inputs.environment != 'dev'
-        run: az acr login --name crformation
-
-      - name: Verify chart exists in ACR
-        if: inputs.environment != 'dev'
-        run: |
-          if ! helm pull oci://crformation.azurecr.io/helm/catalogue \
-            --version ${{ inputs.chart_version }} > /dev/null 2>&1; then
-            echo "::error::Chart version '${{ inputs.chart_version }}' not found in ACR"
-            exit 1
-          fi
-          echo "Chart version '${{ inputs.chart_version }}' found in ACR"
-
-  # ──────────────────────────────────────────────
-  # Job 2 : Build Docker image (dev only)
+  # Job 1 : Build Docker image (dev only)
   # ──────────────────────────────────────────────
   build:
-    if: inputs.environment == 'dev'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: validate
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -90,10 +55,10 @@ jobs:
           retention-days: 1
 
   # ──────────────────────────────────────────────
-  # Job 3 : Image scan — Trivy (dev only)
+  # Job 2 : Image scan — Trivy (dev only)
   # ──────────────────────────────────────────────
   image-scan:
-    if: inputs.environment == 'dev'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: build
@@ -142,10 +107,10 @@ jobs:
           retention-days: 7
 
   # ──────────────────────────────────────────────
-  # Job 4 : Push image to ACR (dev only)
+  # Job 3 : Push image to ACR (dev only)
   # ──────────────────────────────────────────────
   push-acr:
-    if: inputs.environment == 'dev'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: image-scan
@@ -183,88 +148,56 @@ jobs:
           tag: ${{ steps.vars.outputs.tag }}
 
   # ──────────────────────────────────────────────
-  # Job 5 : Push Helm chart to ACR (dev only)
+  # Job 4 : Update GitOps repo — dev (on push to main)
   # ──────────────────────────────────────────────
-  helm-push:
-    if: inputs.environment == 'dev'
+  update-gitops-dev:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     needs: push-acr
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Login to ACR
-        run: az acr login --name crformation
-
-      - name: Inject version, appVersion and image tag
+      - name: Clone gitops repo
         run: |
-          IMAGE_TAG="${{ needs.push-acr.outputs.image-tag }}"
-          BUILD_ID="${{ github.run_number }}"
-          sed -i "s/^version:.*/version: 1.0.${BUILD_ID}/" helm/Chart.yaml
-          sed -i "s/^appVersion:.*/appVersion: \"${IMAGE_TAG}\"/" helm/Chart.yaml
-          sed -i "s/^  tag:.*/  tag: \"${IMAGE_TAG}\"/" helm/values.yaml
-          echo "=== Chart.yaml ==="
-          cat helm/Chart.yaml
-          echo "=== values.yaml image.tag ==="
-          grep "tag:" helm/values.yaml
+          git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/juba-touam/devops-formation-gitops.git
 
-      - name: Package and push Helm chart
+      - name: Update image tag
         run: |
-          helm package ./helm
-          helm push catalogue-*.tgz oci://crformation.azurecr.io/helm
+          cd devops-formation-gitops
+          yq -i '.image.tag = "${{ needs.push-acr.outputs.image-tag }}"' \
+            environments/dev/40-applications/catalog/values.yaml
+
+      - name: Commit and push
+        run: |
+          cd devops-formation-gitops
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add environments/dev/40-applications/catalog/values.yaml
+          git commit -m "chore(catalog): update dev image tag to ${{ needs.push-acr.outputs.image-tag }}"
+          git push
 
   # ──────────────────────────────────────────────
-  # Job 6 : Deploy to AKS
+  # Job 5 : Update GitOps repo — qualif/prod (manual dispatch)
   # ──────────────────────────────────────────────
-  deploy:
+  update-gitops-promote:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [validate, helm-push]
-    if: always() && needs.validate.result == 'success' && (needs.helm-push.result == 'success' || needs.helm-push.result == 'skipped')
+    timeout-minutes: 5
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Get AKS credentials
+      - name: Clone gitops repo
         run: |
-          az aks get-credentials \
-            --resource-group ${{ secrets.AKS_RESOURCE_GROUP }} \
-            --name ${{ secrets.AKS_CLUSTER_NAME }}
+          git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/juba-touam/devops-formation-gitops.git
 
-      - name: Login to ACR
-        run: az acr login --name crformation
-
-      - name: Helm upgrade
+      - name: Update image tag
         run: |
-          CHART_VERSION="${{ inputs.environment == 'dev' && format('1.0.{0}', github.run_number) || inputs.chart_version }}"
-          helm upgrade catalogue \
-            oci://crformation.azurecr.io/helm/catalogue \
-            --install \
-            --atomic \
-            --version "${CHART_VERSION}" \
-            --namespace ${{ inputs.environment }} \
-            --create-namespace \
-            -f helm/values-${{ inputs.environment }}.yaml \
-            --wait \
-            --timeout 5m
+          cd devops-formation-gitops
+          yq -i '.image.tag = "${{ inputs.image_tag }}"' \
+            environments/${{ inputs.environment }}/40-applications/catalog/values.yaml
 
-      - name: Verify deployment
+      - name: Commit and push
         run: |
-          kubectl rollout status deployment/catalogue \
-            --namespace ${{ inputs.environment }} \
-            --timeout=120s
+          cd devops-formation-gitops
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add environments/${{ inputs.environment }}/40-applications/catalog/values.yaml
+          git commit -m "chore(catalog): update ${{ inputs.environment }} image tag to ${{ inputs.image_tag }}"
+          git push
