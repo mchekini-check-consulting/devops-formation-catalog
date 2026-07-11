@@ -158,7 +158,7 @@ jobs:
     steps:
       - name: Clone gitops repo
         run: |
-          git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/juba-touam/devops-formation-gitops.git
+          git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/mchekini-check-consulting/devops-formation-gitops.git
 
       - name: Update image tag
         run: |
@@ -185,7 +185,7 @@ jobs:
     steps:
       - name: Clone gitops repo
         run: |
-          git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/juba-touam/devops-formation-gitops.git
+          git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/mchekini-check-consulting/devops-formation-gitops.git
 
       - name: Update image tag
         run: |
