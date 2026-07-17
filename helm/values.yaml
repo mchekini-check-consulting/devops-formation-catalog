@@ -113,6 +113,11 @@ rollout:
         - pause: { duration: 5m }
         - setWeight: 100
 
+externalSecret:
+  enabled: false
+  refreshInterval: "1m"
+  vaultPath: ""
+
 netpolicies:
   ingresssources: ingress-nginx
   ingressdestports: 4000
