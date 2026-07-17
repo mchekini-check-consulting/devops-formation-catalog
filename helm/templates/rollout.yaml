@@ -75,7 +75,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Chart.Name }}-config
-            {{- if .Values.secret.enabled }}
+            {{- if or .Values.secret.enabled .Values.externalSecret.enabled }}
             - secretRef:
                 name: {{ .Chart.Name }}-secret
             {{- end }}
@@ -95,7 +95,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Chart.Name }}-config
-            {{- if .Values.secret.enabled }}
+            {{- if or .Values.secret.enabled .Values.externalSecret.enabled }}
             - secretRef:
                 name: {{ .Chart.Name }}-secret
             {{- end }}
