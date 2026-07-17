@@ -20,6 +20,8 @@ spec:
     metadata:
       labels:
         {{- include "catalogue.selectorLabels" . | nindent 8 }}
+      annotations:
+        reloader.stakater.com/auto: "true"
     spec:
       affinity:
         podAntiAffinity:
