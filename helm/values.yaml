@@ -101,9 +101,7 @@ rollout:
     canary:
       stableService: catalogue
       canaryService: catalogue-canary
-      trafficRouting:
-        nginx:
-          stableIngress: catalogue-ingress
+      trafficRouting: {}
       steps:
         - setWeight: 20
         - pause: { duration: 2m }
