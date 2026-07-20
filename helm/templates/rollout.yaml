@@ -17,8 +17,7 @@ spec:
       stableService: {{ .Values.rollout.strategy.canary.stableService }}
       canaryService: {{ .Values.rollout.strategy.canary.canaryService }}
       trafficRouting:
-        nginx:
-          stableIngress: {{ .Values.rollout.strategy.canary.trafficRouting.nginx.stableIngress }}
+        {{- toYaml .Values.rollout.strategy.canary.trafficRouting | nindent 8 }}
       steps:
         {{- toYaml .Values.rollout.strategy.canary.steps | nindent 8 }}
   template:
