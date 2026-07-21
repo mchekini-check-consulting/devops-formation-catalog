@@ -3,7 +3,7 @@
 A REST microservice for product management built with Node.js, Express and PostgreSQL.
 
 ## Stack
-- **Node.js / Express** — REST API
+- **Node.js / Express** — REST  API
 - **Sequelize** — ORM for PostgreSQL
 - **PostgreSQL** — persistence
 - **Docker / Docke r Compose** — containerisation 
