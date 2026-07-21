@@ -8,6 +8,22 @@ const productRoutes = require('./routes/product.routes');
 const sequelize = require('./config/database');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
+const { collectDefaultMetrics, register, Histogram, Counter } = require('prom-client');
+
+collectDefaultMetrics();
+
+const httpRequestDuration = new Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.01, 0.05, 0.1, 0.3, 0.5, 1, 2, 5],
+});
+
+const catalogProductsReturned = new Counter({
+  name: 'catalog_products_returned_total',
+  help: 'Total number of product queries served',
+});
+
 const app = express();
 
 app.use(cors());
@@ -15,10 +31,25 @@ app.use(httpLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Prometheus metrics middleware
+app.use((req, res, next) => {
+  const end = httpRequestDuration.startTimer();
+  res.on('finish', () => {
+    const route = req.route ? req.route.path : req.path;
+    end({ method: req.method, route, status_code: res.statusCode });
+  });
+  next();
+});
+
 app.use('/api/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'catalogue-service' });
+});
+
+app.get('/actuator/prometheus', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 app.use('/api/products', productRoutes);
