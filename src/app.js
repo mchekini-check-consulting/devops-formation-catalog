@@ -8,7 +8,7 @@ const productRoutes = require('./routes/product.routes');
 const sequelize = require('./config/database');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
-const { collectDefaultMetrics, register, Histogram, Counter } = require('prom-client');
+const { collectDefaultMetrics, register, Histogram } = require('prom-client');
 
 collectDefaultMetrics();
 
@@ -17,11 +17,6 @@ const httpRequestDuration = new Histogram({
   help: 'Duration of HTTP requests in seconds',
   labelNames: ['method', 'route', 'status_code'],
   buckets: [0.01, 0.05, 0.1, 0.3, 0.5, 1, 2, 5],
-});
-
-const catalogProductsReturned = new Counter({
-  name: 'catalog_products_returned_total',
-  help: 'Total number of product queries served',
 });
 
 const app = express();
