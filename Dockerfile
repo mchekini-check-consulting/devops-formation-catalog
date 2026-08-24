@@ -19,8 +19,7 @@ RUN npx esbuild src/app.js --bundle --platform=node --outfile=dist/app.js \
 
 # Stage 2: production (sans node_modules)
 FROM node:20-alpine AS production
-RUN apk update && apk upgrade --no-cache && \
-    npm install -g npm@latest && npm cache clean --force
+RUN apk update && apk upgrade --no-cache
 WORKDIR /app
 COPY --from=builder /app/dist/app.js ./app.js
 RUN npm init -y > /dev/null 2>&1 && npm install pg --omit=dev 2>/dev/null
