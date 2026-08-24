@@ -1,5 +1,5 @@
 image:
-  repository: crformation.azurecr.io/catalog
+  repository: docker.io/jubatouam/catalog
   tag: "2.0"
   pullPolicy: Always
 
@@ -80,14 +80,14 @@ hpa:
       periodSeconds: 60
 
 vpa:
+  enabled: true
   updateMode: "Off"
 
 ingress:
   enabled: true
   name: catalogue-ingress
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/use-regex: "true"
+  className: kong
+  annotations: {}
   routes:
     - path: /api/products
       pathType: Prefix
@@ -117,7 +117,7 @@ externalSecret:
   vaultPath: ""
 
 netpolicies:
-  ingresssources: ingress-nginx
+  ingresssources: kong
   ingressdestports: 4000
   ingressprotocol: TCP
   egresssources: pgcat

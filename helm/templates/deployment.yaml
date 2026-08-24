@@ -37,7 +37,7 @@ spec:
             - weight: 100
               preference:
                 matchExpressions:
-                  - key: kubernetes.azure.com/agentpool
+                  - key: workload
                     operator: In
                     values:
                       - {{ .Values.affinity.nodepool }}
