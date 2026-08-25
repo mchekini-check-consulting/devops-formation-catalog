@@ -33,7 +33,7 @@ probes:
 resources:
   requests:
     cpu: 15m
-    memory: 150Mi
+    memory: 96Mi
   limits:
     cpu: 50m
     memory: 200Mi
@@ -58,30 +58,6 @@ configmap:
 secret:
   enabled: false
   data: {}
-
-pdb:
-  minAvailable: 1
-
-hpa:
-  minReplicas: 2
-  maxReplicas: 4
-  cpu:
-    averageUtilization: 70
-  memory:
-    averageUtilization: 80
-  behavior:
-    scaleUp:
-      stabilizationWindowSeconds: 60
-      percent: 100
-      periodSeconds: 60
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      percent: 25
-      periodSeconds: 60
-
-vpa:
-  enabled: true
-  updateMode: "Off"
 
 ingress:
   enabled: true
