@@ -6,6 +6,7 @@ const logger = require('./config/logger');
 const httpLogger = require('./middleware/httpLogger');
 const productRoutes = require('./routes/product.routes');
 const sequelize = require('./config/database');
+const runMigrations = require('./config/migrate');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const { collectDefaultMetrics, register, Histogram } = require('prom-client');
@@ -68,6 +69,7 @@ const start = async () => {
   try {
     await sequelize.authenticate();
     logger.info('Database connection established.');
+    await runMigrations();
     await sequelize.sync();
     logger.info('Database synced.');
     app.listen(PORT, () => {

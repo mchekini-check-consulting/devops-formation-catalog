@@ -33,6 +33,14 @@ const Product = sequelize.define(
         notEmpty: { msg: 'Category cannot be empty' },
       },
     },
+    solde: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      validate: {
+        isDecimal: { msg: 'Solde must be a valid number' },
+        min: { args: [0], msg: 'Solde must be greater than or equal to 0' },
+      },
+    },
   },
   {
     tableName: 'products',

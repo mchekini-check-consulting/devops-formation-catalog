@@ -13,6 +13,10 @@ const createProductValidation = [
   body('category')
     .trim()
     .notEmpty().withMessage('Category is required'),
+
+  body('solde')
+    .optional({ nullable: true })
+    .isFloat({ min: 0 }).withMessage('Solde must be a positive number'),
 ];
 
 const updateProductValidation = [
@@ -30,6 +34,10 @@ const updateProductValidation = [
     .optional()
     .trim()
     .notEmpty().withMessage('Category cannot be empty'),
+
+  body('solde')
+    .optional({ nullable: true })
+    .isFloat({ min: 0 }).withMessage('Solde must be a positive number'),
 ];
 
 const searchProductValidation = [
