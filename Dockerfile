@@ -19,6 +19,11 @@ RUN npx esbuild src/app.js --bundle --platform=node --outfile=dist/app.js \
 
 # Stage 2: production (sans node_modules)
 FROM node:20-alpine AS production
+
+# Cache-bust this layer so `apk upgrade` re-hits the package index every build,
+# instead of replaying a stale cached layer (GHA cache pins layers by instruction
+# text + parent digest, which doesn't know new CVE fixes landed upstream).
+ARG APK_CACHE_BUST=1
 RUN apk update && apk upgrade --no-cache
 WORKDIR /app
 COPY --from=builder /app/dist/app.js ./app.js
