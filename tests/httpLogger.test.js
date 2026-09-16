@@ -25,7 +25,7 @@ describe('httpLogger middleware', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it('logs at info level for a 2xx response', () => {
+  it('logs with the exact "METHOD URL STATUS" message format', () => {
     const req = { method: 'GET', originalUrl: '/api/products', headers: {} };
     const res = makeRes(200);
     httpLogger(req, res, jest.fn());
@@ -33,48 +33,23 @@ describe('httpLogger middleware', () => {
     res.emit('finish');
 
     expect(logger.log).toHaveBeenCalledTimes(1);
-    expect(logger.log.mock.calls[0][0]).toBe('info');
     expect(logger.log.mock.calls[0][1]).toBe('GET /api/products 200');
   });
 
-  it('logs at info level for a 399 response (just below the warn threshold)', () => {
+  it.each([
+    [200, 'info'],
+    [399, 'info'],
+    [400, 'warn'],
+    [499, 'warn'],
+    [500, 'error'],
+  ])('logs a %i response at "%s" level', (statusCode, expectedLevel) => {
     const req = { method: 'GET', originalUrl: '/api/products', headers: {} };
-    const res = makeRes(399);
+    const res = makeRes(statusCode);
     httpLogger(req, res, jest.fn());
 
     res.emit('finish');
 
-    expect(logger.log.mock.calls[0][0]).toBe('info');
-  });
-
-  it('logs at warn level for a 400 response (exact threshold)', () => {
-    const req = { method: 'POST', originalUrl: '/api/products', headers: {} };
-    const res = makeRes(400);
-    httpLogger(req, res, jest.fn());
-
-    res.emit('finish');
-
-    expect(logger.log.mock.calls[0][0]).toBe('warn');
-  });
-
-  it('logs at warn level for a 499 response (just below the error threshold)', () => {
-    const req = { method: 'GET', originalUrl: '/api/products/x', headers: {} };
-    const res = makeRes(499);
-    httpLogger(req, res, jest.fn());
-
-    res.emit('finish');
-
-    expect(logger.log.mock.calls[0][0]).toBe('warn');
-  });
-
-  it('logs at error level for a 500 response (exact threshold)', () => {
-    const req = { method: 'GET', originalUrl: '/api/products', headers: {} };
-    const res = makeRes(500);
-    httpLogger(req, res, jest.fn());
-
-    res.emit('finish');
-
-    expect(logger.log.mock.calls[0][0]).toBe('error');
+    expect(logger.log.mock.calls[0][0]).toBe(expectedLevel);
   });
 
   it('includes correlationId and userId from headers when present', () => {
