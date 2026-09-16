@@ -110,6 +110,51 @@ describe('POST /api/products', () => {
     });
     expect(res.status).toBe(201);
   });
+  it('should return 400 if description is missing', async () => {
+    const res = await request(app).post('/api/products').send({
+      name: 'No Description',
+      price: 10,
+      category: 'Test',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.errors.some((e) => e.msg === 'Description is required')).toBe(true);
+    expect(Product.create).not.toHaveBeenCalled();
+  });
+  it('should return 400 if description is shorter than 10 characters', async () => {
+    const res = await request(app).post('/api/products').send({
+      name: 'Short Description',
+      price: 10,
+      category: 'Test',
+      description: 'short',
+    });
+    expect(res.status).toBe(400);
+    expect(
+      res.body.errors.some((e) => e.msg === 'Description must be between 10 and 2000 characters')
+    ).toBe(true);
+    expect(Product.create).not.toHaveBeenCalled();
+  });
+  it('should return 400 if description exceeds 2000 characters', async () => {
+    const res = await request(app).post('/api/products').send({
+      name: 'Long Description',
+      price: 10,
+      category: 'Test',
+      description: 'A'.repeat(2001),
+    });
+    expect(res.status).toBe(400);
+    expect(
+      res.body.errors.some((e) => e.msg === 'Description must be between 10 and 2000 characters')
+    ).toBe(true);
+  });
+  it('should accept a description exactly 10 characters long', async () => {
+    Product.create.mockResolvedValue(mockProduct);
+    const res = await request(app).post('/api/products').send({
+      name: 'Boundary Description',
+      price: 10,
+      category: 'Test',
+      description: '1234567890',
+    });
+    expect(res.status).toBe(201);
+  });
 });
 
 describe('PUT /api/products/:id', () => {
@@ -152,6 +197,30 @@ describe('PUT /api/products/:id', () => {
       .send({ name: 'A'.repeat(256) });
     expect(res.status).toBe(400);
     expect(res.body.errors).toBeDefined();
+  });
+  it('should return 400 if description is shorter than 10 characters', async () => {
+    const res = await request(app)
+      .put(`/api/products/${mockProduct.id}`)
+      .send({ description: 'short' });
+    expect(res.status).toBe(400);
+    expect(
+      res.body.errors.some((e) => e.msg === 'Description must be between 10 and 2000 characters')
+    ).toBe(true);
+    expect(Product.findByPk).not.toHaveBeenCalled();
+  });
+  it('should accept an update without description (optional field)', async () => {
+    const productInstance = {
+      ...mockProduct,
+      update: jest.fn().mockImplementation(function (data) {
+        Object.assign(this, data);
+        return Promise.resolve(this);
+      }),
+    };
+    Product.findByPk.mockResolvedValue(productInstance);
+    const res = await request(app)
+      .put(`/api/products/${mockProduct.id}`)
+      .send({ name: 'Updated', price: 15 });
+    expect(res.status).toBe(200);
   });
 });
 

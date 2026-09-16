@@ -10,6 +10,7 @@ const migrations = [
   require('../migrations/20260201000000-create-products-table'),
   require('../migrations/20260215000000-add-solde-to-products'),
   require('../migrations/20260916000000-add-description-to-products'),
+  require('../migrations/20260917000000-create-rag-product-chunks'),
 ];
 
 async function runMigrations() {

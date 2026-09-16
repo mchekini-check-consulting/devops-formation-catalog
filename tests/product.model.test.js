@@ -89,4 +89,19 @@ describe('Product model', () => {
     expect(priceType._precision).toBe(10);
     expect(priceType._scale).toBe(2);
   });
+
+  it('should have description as a nullable TEXT field', () => {
+    const Product = require('../src/models/product.model');
+    expect(Product.rawAttributes.description).toBeDefined();
+    expect(Product.rawAttributes.description.allowNull).toBe(true);
+    expect(Product.rawAttributes.description.type.key).toBe('TEXT');
+  });
+
+  it('should have description validation with a max length of 2000 characters', () => {
+    const Product = require('../src/models/product.model');
+    const descriptionValidate = Product.rawAttributes.description.validate;
+    expect(descriptionValidate.len).toBeDefined();
+    expect(descriptionValidate.len.args).toEqual([0, 2000]);
+    expect(descriptionValidate.len.msg).toBe('Description must be at most 2000 characters');
+  });
 });
