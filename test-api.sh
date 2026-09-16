@@ -11,7 +11,7 @@ curl -s -X POST "$BASE_URL/products" \
   -H "Content-Type: application/json" \
   -H "x-correlation-id: req-test-001" \
   -H "x-user-id: user-42" \
-  -d '{"name": "Clavier mécanique", "price": 89.99, "category": "peripherals"}' | jq .
+  -d '{"name": "Clavier mécanique", "price": 89.99, "category": "peripherals", "description": "Clavier mécanique rétroéclairé RGB, switches rouges, disposition AZERTY."}' | jq .
 echo ""
 
 echo "=== POST - Create Product 2 ==="
@@ -19,14 +19,14 @@ curl -s -X POST "$BASE_URL/products" \
   -H "Content-Type: application/json" \
   -H "x-correlation-id: req-test-002" \
   -H "x-user-id: user-42" \
-  -d '{"name": "Souris gaming", "price": 49.99, "category": "peripherals"}' | jq .
+  -d '{"name": "Souris gaming", "price": 49.99, "category": "peripherals", "description": "Souris gaming filaire 16000 DPI, capteur optique, boutons programmables."}' | jq .
 echo ""
 
 echo "=== POST - Create Product 3 ==="
 curl -s -X POST "$BASE_URL/products" \
   -H "Content-Type: application/json" \
   -H "x-correlation-id: req-test-003" \
-  -d '{"name": "Ecran 27 pouces", "price": 349.00, "category": "monitors"}' | jq .
+  -d '{"name": "Ecran 27 pouces", "price": 349.00, "category": "monitors", "description": "Écran 27 pouces IPS 144Hz, résolution QHD, idéal bureautique et gaming."}' | jq .
 echo ""
 
 echo "=== GET - List all products ==="

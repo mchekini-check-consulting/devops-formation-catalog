@@ -36,6 +36,7 @@ describe('POST /api/products', () => {
       name: 'Test Product',
       price: 29.99,
       category: 'Electronics',
+      description: 'A great test product with plenty of detail.',
     });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('Test Product');
@@ -44,7 +45,12 @@ describe('POST /api/products', () => {
     expect(res.body.id).toBe('123e4567-e89b-12d3-a456-426614174000');
     expect(Product.create).toHaveBeenCalledTimes(1);
     expect(Product.create).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Test Product', price: 29.99, category: 'Electronics' })
+      expect.objectContaining({
+        name: 'Test Product',
+        price: 29.99,
+        category: 'Electronics',
+        description: 'A great test product with plenty of detail.',
+      })
     );
   });
   it('should return 400 if name is missing', async () => {
@@ -100,6 +106,7 @@ describe('POST /api/products', () => {
       name: 'Free Product',
       price: 0,
       category: 'Free',
+      description: 'A free product given away for testing purposes.',
     });
     expect(res.status).toBe(201);
   });
@@ -292,6 +299,7 @@ describe('Error handling', () => {
       name: 'Test Product',
       price: 29.99,
       category: 'Electronics',
+      description: 'A great test product with plenty of detail.',
     });
     expect(res.status).toBe(500);
     expect(res.body.message).toBe('Internal server error');

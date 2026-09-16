@@ -22,11 +22,12 @@
     "express-validator": "^7.0.1",
     "morgan": "^1.10.0",
     "pg": "^8.11.3",
+    "prom-client": "^15.1.0",
     "sequelize": "^6.35.1",
     "swagger-ui-express": "^4.6.3",
+    "umzug": "^3.8.3",
     "uuid": "^9.0.0",
-    "winston": "^3.19.0",
-    "prom-client": "^15.1.0"
+    "winston": "^3.19.0"
   },
   "config": {
     "commitizen": {
