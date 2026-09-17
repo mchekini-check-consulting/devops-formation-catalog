@@ -41,6 +41,13 @@ const Product = sequelize.define(
         min: { args: [0], msg: 'Solde must be greater than or equal to 0' },
       },
     },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      validate: {
+        len: { args: [0, 2000], msg: 'Description must be at most 2000 characters' },
+      },
+    },
   },
   {
     tableName: 'products',

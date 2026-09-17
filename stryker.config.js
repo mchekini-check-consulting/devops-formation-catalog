@@ -8,7 +8,7 @@ module.exports = {
       testPathIgnorePatterns: ['tests/integration'],
     },
   },
-  mutate: ['src/**/*.js', '!src/config/**'],
+  mutate: ['src/**/*.js', '!src/config/**', '!src/migrations/**', '!src/app.js'],
   reporters: ['clear-text', 'html', 'json'],
   thresholds: { high: 80, low: 60, break: 60 },
   coverageAnalysis: 'perTest',

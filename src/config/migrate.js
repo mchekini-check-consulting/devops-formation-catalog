@@ -1,14 +1,31 @@
+const { Umzug, SequelizeStorage } = require('umzug');
 const sequelize = require('./database');
 const logger = require('./logger');
 
-// Expand step of the canary rollout: adds the `solde` column ahead of time so
-// it exists whether the request lands on the v1 (stable) or v2 (canary) pod.
-// Nullable, no default: v1 never writes it, v2 writes it when the client sends it.
+// Migrations are required statically (not glob-resolved at runtime) so that
+// esbuild's bundling in the Dockerfile builder stage picks them up into
+// dist/app.js — the production image only ships that single bundled file,
+// nothing else from src/.
+const migrations = [
+  require('../migrations/20260201000000-create-products-table'),
+  require('../migrations/20260215000000-add-solde-to-products'),
+  require('../migrations/20260916000000-add-description-to-products'),
+  require('../migrations/20260917000000-create-rag-product-chunks'),
+];
+
 async function runMigrations() {
-  await sequelize.query(
-    'ALTER TABLE IF EXISTS products ADD COLUMN IF NOT EXISTS solde DECIMAL(10,2)'
-  );
-  logger.info('Migration: solde column ensured on products table.');
+  const umzug = new Umzug({
+    migrations,
+    context: sequelize.getQueryInterface(),
+    storage: new SequelizeStorage({ sequelize }),
+    logger: undefined,
+  });
+  const executed = await umzug.up();
+  if (executed.length > 0) {
+    logger.info(`Migrations applied: ${executed.map((m) => m.name).join(', ')}`);
+  } else {
+    logger.info('No pending migrations.');
+  }
 }
 
 module.exports = runMigrations;

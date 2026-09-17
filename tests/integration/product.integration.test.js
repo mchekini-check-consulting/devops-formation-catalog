@@ -26,6 +26,7 @@ describe('Integration Tests', () => {
       name: 'Integration Product',
       price: 19.99,
       category: 'Testing',
+      description: 'Product created by the integration test suite.',
     });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('Integration Product');
@@ -92,6 +93,7 @@ describe('Integration Tests', () => {
       name: 'Category Product',
       price: 10,
       category: 'Electronics',
+      description: 'Another product created just to test category filtering.',
     });
     const res = await request(app).get('/api/products?category=Electronics');
     expect(res.status).toBe(200);

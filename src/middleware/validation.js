@@ -17,6 +17,11 @@ const createProductValidation = [
   body('solde')
     .optional({ nullable: true })
     .isFloat({ min: 0 }).withMessage('Solde must be a positive number'),
+
+  body('description')
+    .trim()
+    .notEmpty().withMessage('Description is required')
+    .isLength({ min: 10, max: 2000 }).withMessage('Description must be between 10 and 2000 characters'),
 ];
 
 const updateProductValidation = [
@@ -38,6 +43,11 @@ const updateProductValidation = [
   body('solde')
     .optional({ nullable: true })
     .isFloat({ min: 0 }).withMessage('Solde must be a positive number'),
+
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 2000 }).withMessage('Description must be between 10 and 2000 characters'),
 ];
 
 const searchProductValidation = [
